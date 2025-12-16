@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CONTEST ABPG - Ciclos Completos</title>
+    
+    <!-- React, ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
+    <!-- Dependência necessária para Recharts UMD -->
+    <script src="https://unpkg.com/prop-types/prop-types.min.js"></script>
+    
+    <!-- Recharts (Versão Fixa e Estável) -->
+    <script src="https://unpkg.com/recharts@2.12.7/umd/Recharts.js"></script>
+    
+    <!-- Babel -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Fontes e Estilos -->
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;900&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #fff7ed; /* Laranja bem claro de fundo */ }
+        .glass { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); }
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        /* Animações */
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-fade { animation: fadeIn 0.3s ease-out forwards; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useMemo } = React;
+        // Garantir que Recharts está carregado antes de desestruturar
+        const { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend } = window.Recharts || {};
+
+        // --- ÍCONES SVG ---
+        const Icons = {
+            Lock: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>,
+            Unlock: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>,
+            Check: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>,
+            Plus: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>,
+            Trash: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>,
+            Clip: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>,
+            Chart: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>,
+            Home: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>,
+            Settings: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>,
+            Link: () => <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+        };
+
+        // --- ESTRUTURA DE DADOS INICIAL ---
+        const INITIAL_CYCLES = [
+            {
+                id: 1, title: 'Ciclo 1: Janeiro 2026', desc: 'Bases Comuns (Português & Mat)', 
+                categories: {
+                    'Língua Portuguesa': [
+                        { id: 'c1p1', title: 'Compreensão de textos', completed: false, attachments: [] },
+                        { id: 'c1p2', title: 'Ortografia', completed: false, attachments: [] },
+                        { id: 'c1p3', title: 'Coesão textual', completed: false, attachments: [] },
+                        { id: 'c1p4', title: 'Tipos e gêneros textuais', completed: false, attachments: [] }
+                    ],
+                    'Matemática': [
+                        { id: 'c1m1', title: 'Números reais', completed: false, attachments: [] },
+                        { id: 'c1m2', title: 'Operações e Porcentagem', completed: false, attachments: [] },
+                        { id: 'c1m3', title: 'Funções do 1º e 2º grau', completed: false, attachments: [] }
+                    ],
+                    'Redação': [
+                        { id: 'c1r1', title: 'Estrutura do texto dissertativo', completed: false, attachments: [] },
+                        { id: 'c1r2', title: 'Redação Semana 1', completed: false, attachments: [] },
+                        { id: 'c1r3', title: 'Redação Semana 2', completed: false, attachments: [] },
+                        { id: 'c1r4', title: 'Redação Semana 3', completed: false, attachments: [] },
+                        { id: 'c1r5', title: 'Redação Semana 4', completed: false, attachments: [] }
+                    ]
+                }
+            },
+            {
+                id: 2, title: 'Ciclo 2: Fevereiro 2026', desc: 'Introdução Específicas (Direito/BNB)', 
+                categories: {
+                    'Língua Portuguesa': [{ id: 'c2p1', title: 'Pontuação e Concordância', completed: false, attachments: [] }],
+                    'Matemática': [{ id: 'c2m1', title: 'Razões, Proporções, Sistemas', completed: false, attachments: [] }],
+                    'Conhecimentos Bancários': [{ id: 'c2b1', title: 'Sistema Financeiro Nacional', completed: false, attachments: [] }],
+                    'Direito Constitucional': [{ id: 'c2d1', title: 'Princípios Fundamentais', completed: false, attachments: [] }],
+                    'Redação': [{ id: 'c2r1', title: 'Tipos de Argumento (8 redações)', completed: false, attachments: [] }]
+                }
+            },
+            {
+                id: 3, title: 'Ciclo 3: Março 2026', desc: 'Direito (TJCE) e Matemática Avançada', 
+                categories: {
+                    'Direito': [
+                        { id: 'c3d1', title: 'Teoria Geral e Atos Jurídicos', completed: false, attachments: [] },
+                        { id: 'c3d2', title: 'Contratos', completed: false, attachments: [] }
+                    ],
+                    'Matemática': [{ id: 'c3m1', title: 'Probabilidade e Análise Combinatória', completed: false, attachments: [] }],
+                    'ENEM': [{ id: 'c3e1', title: 'Funções de Linguagem', completed: false, attachments: [] }],
+                    'Redação': [{ id: 'c3r1', title: 'Competências ENEM 1 a 5', completed: false, attachments: [] }]
+                }
+            },
+            {
+                id: 4, title: 'Ciclo 4: Abril 2026', desc: 'Direito Penal e Informática', 
+                categories: {
+                    'Direito Penal': [{ id: 'c4d1', title: 'Teoria do crime e Penas', completed: false, attachments: [] }],
+                    'Informática': [{ id: 'c4i1', title: 'Sistemas Operacionais', completed: false, attachments: [] }],
+                    'ENEM': [{ id: 'c4e1', title: 'Figuras de Linguagem', completed: false, attachments: [] }],
+                    'Redação': [{ id: 'c4r1', title: 'Repertório Sociocultural', completed: false, attachments: [] }]
+                }
+            },
+            {
+                id: 5, title: 'Ciclo 5: Maio 2026', desc: 'Ciências da Natureza e Jurídico', 
+                categories: {
+                    'Natureza': [{ id: 'c5n1', title: 'Química, Física, Biologia (Bases)', completed: false, attachments: [] }],
+                    'Direito Processual': [{ id: 'c5d1', title: 'Atos, Recursos, Sentença', completed: false, attachments: [] }],
+                    'Matemática': [{ id: 'c5m1', title: 'Trigonometria e Estatística', completed: false, attachments: [] }],
+                    'Redação': [{ id: 'c5r1', title: 'Tempo Cronometrado (1h)', completed: false, attachments: [] }]
+                }
+            },
+            {
+                id: 6, title: 'Ciclo 6: Junho 2026', desc: 'Revisão Intensiva', 
+                categories: {
+                    'Revisão Geral': [{ id: 'c6rv1', title: 'Intensivão Pt/Mat/Dir', completed: false, attachments: [] }],
+                    'Simulados': [{ id: 'c6s1', title: 'Baterias Completas de Questões', completed: false, attachments: [] }],
+                    'Redação': [{ id: 'c6r1', title: 'Correção Profunda e Reescrita', completed: false, attachments: [] }]
+                }
+            },
+            {
+                id: 7, title: 'Ciclo 7: Julho 2026', desc: 'Legislação Específica e Pressão', 
+                categories: {
+                    'TJCE Específica': [{ id: 'c7t1', title: 'Estatuto e Regimento Interno', completed: false, attachments: [] }],
+                    'BNB': [{ id: 'c7b1', title: 'Revisão Bancária e Info', completed: false, attachments: [] }],
+                    'Redação': [{ id: 'c7r1', title: 'Simulados em Tempo Real', completed: false, attachments: [] }]
+                }
+            },
+            {
+                id: 8, title: 'Ciclo 8: Agosto 2026', desc: 'Reta Final e Polimento', 
+                categories: {
+                    'Revisão Final': [{ id: 'c8rv1', title: 'Pontos Fracos e Detalhes', completed: false, attachments: [] }],
+                    'Simulados': [{ id: 'c8s1', title: 'Simulados Finais', completed: false, attachments: [] }],
+                    'Redação': [{ id: 'c8r1', title: 'Leitura de Textos Nota 1000', completed: false, attachments: [] }]
+                }
+            }
+        ];
+
+        // --- COMPONENTES ---
+
+        // Modal de Anexos
+        const AttachmentModal = ({ task, onClose, onSave, onRemove }) => {
+            const [link, setLink] = useState('');
+            const [name, setName] = useState('');
+
+            const handleAdd = () => {
+                if(!link || !name) return;
+                onSave({ id: Date.now(), name, link, type: 'link' });
+                setLink('');
+                setName('');
+            };
+
+            return (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-xl p-6 w-full max-w-md shadow-2xl animate-fade">
+                        <h3 className="text-lg font-bold mb-4 flex items-center gap-2 text-orange-600"><Icons.Clip /> Anexar Conteúdo</h3>
+                        <p className="text-sm text-slate-500 mb-4">Adicione links de videoaulas, drive, ou resumos para: <strong>{task.title}</strong></p>
+                        
+                        <div className="space-y-3">
+                            <input 
+                                className="w-full p-2 border rounded focus:ring-2 focus:ring-orange-500 outline-none" 
+                                placeholder="Nome do arquivo/Link (Ex: Resumo PDF)" 
+                                value={name} onChange={e => setName(e.target.value)}
+                            />
+                            <input 
+                                className="w-full p-2 border rounded focus:ring-2 focus:ring-orange-500 outline-none" 
+                                placeholder="URL (https://...)" 
+                                value={link} onChange={e => setLink(e.target.value)}
+                            />
+                            <button onClick={handleAdd} className="w-full bg-orange-600 text-white py-2 rounded hover:bg-orange-700 font-bold">Adicionar Link</button>
+                        </div>
+
+                        <div className="mt-6">
+                            <h4 className="font-bold text-xs uppercase text-slate-400 mb-2">Anexos Atuais</h4>
+                            {task.attachments.length === 0 && <p className="text-xs text-slate-400 italic">Nenhum anexo.</p>}
+                            <ul className="space-y-2 max-h-40 overflow-y-auto pr-1 scrollbar-hide">
+                                {task.attachments.map(att => (
+                                    <li key={att.id} className="flex justify-between items-center text-sm bg-orange-50 p-2 rounded border border-orange-100">
+                                        <a href={att.link} target="_blank" className="text-orange-600 hover:underline flex items-center gap-2 truncate max-w-[200px]">
+                                            <Icons.Link /> {att.name}
+                                        </a>
+                                        <button 
+                                            onClick={(e) => { e.stopPropagation(); onRemove(att.id); }}
+                                            className="text-red-400 hover:text-red-600 p-1.5 rounded hover:bg-red-50 transition-colors"
+                                            title="Remover anexo"
+                                        >
+                                            <Icons.Trash />
+                                        </button>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+
+                        <div className="mt-6 text-right pt-4 border-t border-slate-100">
+                            <button onClick={onClose} className="text-slate-500 hover:text-slate-700 text-sm font-medium px-4 py-2 hover:bg-slate-100 rounded">Fechar</button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // App Principal
+        const App = () => {
+            const [cycles, setCycles] = useState(INITIAL_CYCLES);
+            const [activeCycleId, setActiveCycleId] = useState(null);
+            const [view, setView] = useState('dashboard'); // dashboard, cycle, stats
+            const [forceUnlock, setForceUnlock] = useState(false); // Opção "Developer Mode" para desbloquear tudo
+            
+            // Estado para Modais
+            const [attachTask, setAttachTask] = useState(null); // Tarefa sendo editada para anexos
+            const [newTaskCategory, setNewTaskCategory] = useState(null); // Categoria recebendo nova tarefa
+            const [newTaskTitle, setNewTaskTitle] = useState('');
+
+            // Carregar do LocalStorage
+            useEffect(() => {
+                const saved = localStorage.getItem('studyMasterPro_v1');
+                if (saved) {
+                    try { setCycles(JSON.parse(saved)); } catch(e) { console.error(e); }
+                }
+            }, []);
+
+            // Salvar no LocalStorage
+            useEffect(() => {
+                localStorage.setItem('studyMasterPro_v1', JSON.stringify(cycles));
+            }, [cycles]);
+
+            // Lógica de Progresso
+            const getCycleProgress = (cycle) => {
+                let total = 0;
+                let completed = 0;
+                Object.values(cycle.categories).forEach(catTasks => {
+                    total += catTasks.length;
+                    completed += catTasks.filter(t => t.completed).length;
+                });
+                return total === 0 ? 0 : Math.round((completed / total) * 100);
+            };
+
+            const isLocked = (index) => {
+                if (forceUnlock) return false;
+                if (index === 0) return false;
+                const prevCycle = cycles[index - 1];
+                return getCycleProgress(prevCycle) < 100;
+            };
+
+            // Ações de Tarefa
+            const toggleTask = (cycleId, category, taskId) => {
+                setCycles(prev => prev.map(c => {
+                    if (c.id !== cycleId) return c;
+                    const newCats = { ...c.categories };
+                    newCats[category] = newCats[category].map(t => 
+                        t.id === taskId ? { ...t, completed: !t.completed } : t
+                    );
+                    return { ...c, categories: newCats };
+                }));
+            };
+
+            const addTask = () => {
+                if (!newTaskTitle || !newTaskCategory) return;
+                const { cycleId, categoryName } = newTaskCategory;
+                
+                setCycles(prev => prev.map(c => {
+                    if (c.id !== cycleId) return c;
+                    const newCats = { ...c.categories };
+                    newCats[categoryName] = [
+                        ...newCats[categoryName], 
+                        { id: Date.now(), title: newTaskTitle, completed: false, attachments: [] }
+                    ];
+                    return { ...c, categories: newCats };
+                }));
+                setNewTaskCategory(null);
+                setNewTaskTitle('');
+            };
+
+            const deleteTask = (cycleId, category, taskId) => {
+                if(!confirm("Tem certeza que deseja excluir esta tarefa?")) return;
+                setCycles(prev => prev.map(c => {
+                    if (c.id !== cycleId) return c;
+                    const newCats = { ...c.categories };
+                    newCats[category] = newCats[category].filter(t => t.id !== taskId);
+                    return { ...c, categories: newCats };
+                }));
+            };
+
+            const addAttachmentToTask = (attachment) => {
+                if (!attachTask) return;
+                setCycles(prev => prev.map(c => {
+                    let found = false;
+                    const newCats = { ...c.categories };
+                    Object.keys(newCats).forEach(cat => {
+                        newCats[cat] = newCats[cat].map(t => {
+                            if (t.id === attachTask.id) {
+                                found = true;
+                                return { ...t, attachments: [...t.attachments, attachment] };
+                            }
+                            return t;
+                        });
+                    });
+                    if (found) return { ...c, categories: newCats };
+                    return c;
+                }));
+                setAttachTask(prev => ({ ...prev, attachments: [...prev.attachments, attachment] }));
+            };
+
+            const removeAttachmentFromTask = (attachmentId) => {
+                if (!attachTask) return;
+                if(!confirm("Tem certeza que deseja remover este anexo?")) return;
+                
+                setCycles(prev => prev.map(c => {
+                    let found = false;
+                    const newCats = { ...c.categories };
+                    Object.keys(newCats).forEach(cat => {
+                        newCats[cat] = newCats[cat].map(t => {
+                            if (t.id === attachTask.id) {
+                                found = true;
+                                return { ...t, attachments: t.attachments.filter(a => a.id !== attachmentId) };
+                            }
+                            return t;
+                        });
+                    });
+                    if (found) return { ...c, categories: newCats };
+                    return c;
+                }));
+                setAttachTask(prev => ({ ...prev, attachments: prev.attachments.filter(a => a.id !== attachmentId) }));
+            };
+
+            // --- VISTAS ---
+
+            const Sidebar = () => (
+                <div className="w-full md:w-64 bg-slate-900 text-slate-300 flex flex-col h-screen fixed left-0 top-0 z-20 overflow-y-auto">
+                    <div className="p-6">
+                        <h1 className="text-xl font-bold text-white tracking-wider flex items-center gap-2">
+                            CONTEST <span className="text-orange-400 text-xs bg-orange-900/50 px-2 py-1 rounded">ABPG</span>
+                        </h1>
+                    </div>
+                    <nav className="flex-1 px-4 space-y-2">
+                        <button onClick={() => setView('dashboard')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${view === 'dashboard' ? 'bg-orange-600 text-white' : 'hover:bg-slate-800'}`}>
+                            <Icons.Home /> Dashboard
+                        </button>
+                        <button onClick={() => setView('stats')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${view === 'stats' ? 'bg-orange-600 text-white' : 'hover:bg-slate-800'}`}>
+                            <Icons.Chart /> Estatísticas
+                        </button>
+                        
+                        <div className="pt-6 pb-2 text-xs font-bold uppercase text-slate-500 tracking-wider">Ciclos</div>
+                        {cycles.map((c, index) => {
+                            const locked = isLocked(index);
+                            const progress = getCycleProgress(c);
+                            return (
+                                <button 
+                                    key={c.id}
+                                    disabled={locked}
+                                    onClick={() => { setActiveCycleId(c.id); setView('cycle'); }}
+                                    className={`w-full flex justify-between items-center px-4 py-3 rounded-lg text-sm transition-all
+                                        ${activeCycleId === c.id && view === 'cycle' ? 'bg-slate-800 text-white border-l-4 border-orange-500' : ''}
+                                        ${locked ? 'opacity-50 cursor-not-allowed' : 'hover:bg-slate-800'}
+                                    `}
+                                >
+                                    <span className="truncate flex-1 text-left">{c.title}</span>
+                                    {locked ? <Icons.Lock /> : (progress === 100 ? <Icons.Check className="text-green-500" /> : <span className="text-xs font-mono">{progress}%</span>)}
+                                </button>
+                            );
+                        })}
+                    </nav>
+                    <div className="p-4 border-t border-slate-800">
+                        <label className="flex items-center gap-2 text-xs cursor-pointer">
+                            <input type="checkbox" checked={forceUnlock} onChange={() => setForceUnlock(!forceUnlock)} />
+                            Modo Desenvolvedor (Desbloquear Tudo)
+                        </label>
+                    </div>
+                </div>
+            );
+
+            const StatsView = () => {
+                // Preparar dados para gráficos
+                const barData = cycles.map(c => ({
+                    name: `Ciclo ${c.id}`,
+                    progresso: getCycleProgress(c)
+                }));
+
+                // Calcular total de tarefas por categoria global
+                const categoryStats = {};
+                cycles.forEach(c => {
+                    Object.keys(c.categories).forEach(catName => {
+                        // Normalizar nomes (ex: remover acentos se quisesse agrupar melhor, mas vamos manter simples)
+                        const key = catName.split(':')[0]; // Agrupar "Revisão: Pt" com "Revisão"
+                        if(!categoryStats[key]) categoryStats[key] = { total: 0, completed: 0 };
+                        categoryStats[key].total += c.categories[catName].length;
+                        categoryStats[key].completed += c.categories[catName].filter(t => t.completed).length;
+                    });
+                });
+                
+                const pieData = Object.keys(categoryStats).map(k => ({
+                    name: k,
+                    value: categoryStats[k].completed
+                })).filter(d => d.value > 0);
+
+                const COLORS = ['#ea580c', '#f97316', '#fb923c', '#fdba74', '#ffedd5', '#9a3412'];
+
+                return (
+                    <div className="p-8 animate-fade pb-20">
+                        <h2 className="text-3xl font-bold text-slate-800 mb-6">Estatísticas Gerais</h2>
+                        
+                        <div className="grid md:grid-cols-2 gap-8">
+                            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 h-80">
+                                <h3 className="font-bold text-slate-600 mb-4">Progresso por Ciclo</h3>
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <BarChart data={barData}>
+                                        <XAxis dataKey="name" fontSize={10} />
+                                        <YAxis />
+                                        <Tooltip />
+                                        <Bar dataKey="progresso" fill="#ea580c" radius={[4, 4, 0, 0]} />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            </div>
+
+                            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 h-80">
+                                <h3 className="font-bold text-slate-600 mb-4">Tarefas Concluídas por Matéria</h3>
+                                {pieData.length > 0 ? (
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <PieChart>
+                                            <Pie data={pieData} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
+                                                {pieData.map((entry, index) => (
+                                                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                                ))}
+                                            </Pie>
+                                            <Tooltip />
+                                            <Legend verticalAlign="bottom" height={36}/>
+                                        </PieChart>
+                                    </ResponsiveContainer>
+                                ) : (
+                                    <div className="h-full flex items-center justify-center text-slate-400">Complete tarefas para ver o gráfico</div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                );
+            };
+
+            const CycleView = () => {
+                const cycle = cycles.find(c => c.id === activeCycleId);
+                if (!cycle) return null;
+
+                const progress = getCycleProgress(cycle);
+
+                return (
+                    <div className="p-4 md:p-8 animate-fade pb-24">
+                        <header className="mb-8 bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row justify-between items-center gap-4">
+                            <div>
+                                <h2 className="text-2xl md:text-3xl font-black text-slate-800">{cycle.title}</h2>
+                                <p className="text-slate-500">{cycle.desc}</p>
+                            </div>
+                            <div className="flex flex-col items-center">
+                                <div className="text-4xl font-black text-orange-600">{progress}%</div>
+                                <div className="w-32 h-2 bg-slate-100 rounded-full mt-2 overflow-hidden">
+                                    <div className="h-full bg-orange-500 transition-all duration-500" style={{ width: `${progress}%` }}></div>
+                                </div>
+                            </div>
+                        </header>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {Object.entries(cycle.categories).map(([catName, tasks]) => (
+                                <div key={catName} className="bg-white rounded-xl shadow-sm border border-slate-200 flex flex-col">
+                                    <div className="p-4 border-b border-slate-100 bg-orange-50/50 rounded-t-xl flex justify-between items-center">
+                                        <h3 className="font-bold text-slate-700">{catName}</h3>
+                                        <span className="text-xs font-mono bg-white px-2 py-1 rounded border text-slate-400">
+                                            {tasks.filter(t => t.completed).length}/{tasks.length}
+                                        </span>
+                                    </div>
+                                    <div className="p-2 flex-1 space-y-1">
+                                        {tasks.map(task => (
+                                            <div key={task.id} className="group flex items-start gap-3 p-2 hover:bg-orange-50 rounded-lg transition-colors">
+                                                <button 
+                                                    onClick={() => toggleTask(cycle.id, catName, task.id)}
+                                                    className={`mt-1 transition-colors ${task.completed ? 'text-green-500' : 'text-slate-300 hover:text-orange-400'}`}
+                                                >
+                                                    {task.completed ? <Icons.Check /> : <Icons.Unlock />} 
+                                                </button>
+                                                
+                                                <div className="flex-1 min-w-0">
+                                                    <p className={`text-sm break-words ${task.completed ? 'text-slate-400 line-through' : 'text-slate-700'}`}>
+                                                        {task.title}
+                                                    </p>
+                                                    
+                                                    {/* Attachments Badges */}
+                                                    {task.attachments.length > 0 && (
+                                                        <div className="flex flex-wrap gap-1 mt-1">
+                                                            {task.attachments.map(att => (
+                                                                <a key={att.id} href={att.link} target="_blank" className="text-[10px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded border border-blue-100 flex items-center gap-1 hover:bg-blue-100">
+                                                                    <Icons.Link /> {att.name}
+                                                                </a>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                <div className="flex opacity-0 group-hover:opacity-100 transition-opacity gap-1">
+                                                    <button onClick={() => setAttachTask(task)} title="Anexar" className="p-1 text-slate-400 hover:text-blue-500">
+                                                        <Icons.Clip />
+                                                    </button>
+                                                    <button onClick={() => deleteTask(cycle.id, catName, task.id)} title="Excluir" className="p-1 text-slate-400 hover:text-red-500">
+                                                        <Icons.Trash />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    
+                                    {/* Add Task Button */}
+                                    <div className="p-2 border-t border-slate-100">
+                                        <button 
+                                            onClick={() => setNewTaskCategory({ cycleId: cycle.id, categoryName: catName })}
+                                            className="w-full py-2 text-xs font-bold text-orange-500 hover:bg-orange-50 rounded dashed border border-transparent hover:border-orange-200 transition-all flex items-center justify-center gap-1"
+                                        >
+                                            <Icons.Plus /> Adicionar Tarefa
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                );
+            };
+
+            const Dashboard = () => {
+                const totalCycles = cycles.length;
+                const completedCycles = cycles.filter(c => getCycleProgress(c) === 100).length;
+                const currentCycle = cycles.find((c, i) => !isLocked(i) && getCycleProgress(c) < 100) || cycles[cycles.length - 1];
+
+                return (
+                    <div className="p-8 animate-fade max-w-4xl mx-auto">
+                        <div className="text-center mb-12">
+                            <h1 className="text-4xl font-black text-slate-800 mb-4">Bem-vindo ao CONTEST ABPG</h1>
+                            <p className="text-slate-500 text-lg">Seu progresso é contínuo. Um ciclo de cada vez.</p>
+                        </div>
+
+                        <div className="grid md:grid-cols-3 gap-6 mb-12">
+                            <div className="bg-orange-600 text-white p-6 rounded-2xl shadow-lg shadow-orange-200">
+                                <div className="text-orange-200 text-sm font-bold uppercase mb-2">Ciclo Atual</div>
+                                <div className="text-2xl font-bold truncate">{currentCycle.title}</div>
+                                <button onClick={() => { setActiveCycleId(currentCycle.id); setView('cycle'); }} className="mt-4 bg-white/20 hover:bg-white/30 px-4 py-2 rounded text-sm font-bold transition-colors w-full">
+                                    Continuar Estudando
+                                </button>
+                            </div>
+                            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-center items-center">
+                                <div className="text-slate-400 text-xs font-bold uppercase mb-1">Ciclos Completos</div>
+                                <div className="text-4xl font-black text-slate-800">{completedCycles}/{totalCycles}</div>
+                            </div>
+                            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-center items-center">
+                                <div className="text-slate-400 text-xs font-bold uppercase mb-1">Total de Tarefas</div>
+                                <div className="text-4xl font-black text-orange-600">
+                                    {cycles.reduce((acc, c) => acc + Object.values(c.categories).reduce((a, b) => a + b.filter(t => t.completed).length, 0), 0)}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 text-center">
+                            <p className="text-slate-500 text-sm italic">
+                                "O sucesso é a soma de pequenos esforços repetidos dia após dia."
+                            </p>
+                        </div>
+                    </div>
+                );
+            };
+
+            return (
+                <div className="flex flex-col md:flex-row min-h-screen bg-slate-50">
+                    <Sidebar />
+                    <div className="flex-1 md:ml-64 relative">
+                        {view === 'dashboard' && <Dashboard />}
+                        {view === 'stats' && <StatsView />}
+                        {view === 'cycle' && <CycleView />}
+                    </div>
+
+                    {/* MODAL: Adicionar Tarefa */}
+                    {newTaskCategory && (
+                        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                            <div className="bg-white rounded-xl p-6 w-full max-w-sm shadow-2xl animate-fade">
+                                <h3 className="font-bold text-lg mb-4 text-orange-600">Nova Tarefa em {newTaskCategory.categoryName}</h3>
+                                <input 
+                                    autoFocus
+                                    value={newTaskTitle}
+                                    onChange={e => setNewTaskTitle(e.target.value)}
+                                    placeholder="Descrição da tarefa..."
+                                    className="w-full p-3 border rounded-lg mb-4 outline-none focus:ring-2 focus:ring-orange-500"
+                                    onKeyDown={e => e.key === 'Enter' && addTask()}
+                                />
+                                <div className="flex gap-2 justify-end">
+                                    <button onClick={() => setNewTaskCategory(null)} className="px-4 py-2 text-slate-500 hover:bg-slate-100 rounded">Cancelar</button>
+                                    <button onClick={addTask} className="px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 font-bold">Adicionar</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* MODAL: Anexos */}
+                    {attachTask && (
+                        <AttachmentModal 
+                            task={attachTask} 
+                            onClose={() => setAttachTask(null)} 
+                            onSave={addAttachmentToTask}
+                            onRemove={removeAttachmentFromTask} 
+                        />
+                    )}
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
